@@ -1,5 +1,6 @@
 return {
-    node = require("node"),
-    player = require("player")
-    pool = require("pool")
+    Node = require('node'),
+    Player = require('player'),
+    Pool = require('pool'),
+    Utils = require('utils')
 }
