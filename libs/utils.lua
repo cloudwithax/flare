@@ -31,8 +31,23 @@ function split(str, character)
     return result
 end
 
+function random_value(tb)
+    local values = {}
+    for k, v in pairs(tb) do table.insert(values, v) end
+    print(values.index)
+    return tb[values[math.random(#values)]]
+end
+
+function random_key(tb)
+    local keys = {}
+    for k in pairs(tb) do table.insert(keys, k) end
+    return tb[keys[math.random(#keys)]]
+end
+
 return {
     dump = dump,
     interp = interp,
-    split = split
+    split = split,
+    random_value = random_value,
+    random_key = random_key
 }

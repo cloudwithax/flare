@@ -12,7 +12,7 @@ local SearchType = enums.SearchType
 
 local Emitter = discordia.Emitter
 local class = discordia.class
-local Node, get = class('FlareNode', Emitter)
+local Node, get = class('Node', Emitter)
 
 local format = string.format
 

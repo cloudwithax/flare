@@ -46,4 +46,8 @@ test.lua
 
 *.json
 *.log
+*.Dockerfile
+*.yml 
+
+/luvit
 
