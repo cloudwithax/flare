@@ -4,9 +4,11 @@ local http = require('coro-http')
 local json = require('json')
 local querystring = require('querystring')
 local utils = require('utils')
+local enums = require('enums')
 local interp = utils.interp
 local split = utils.split
 local dump = utils.dump
+local SearchType = enums.SearchType
 
 local Emitter = discordia.Emitter
 local class = discordia.class
@@ -152,6 +154,17 @@ function Node:_send(method, path, _guild_id, _query, _data, include_version)
     else
         return nil, body
     end
+end
+
+function Node:get_tracks(_query, search_type)
+    if not self._connected then return end
+    assert(type(search_type) == type(SearchType), "Search type is not valid")
+
+    local query = search_type .. ":" .. _query
+
+    print(query)
+
+    -- local tracks = self:_send('GET', 'loadtracks', nil, '')
 end
 
 return Node
