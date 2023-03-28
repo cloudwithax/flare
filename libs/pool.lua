@@ -2,9 +2,7 @@ local discordia = require('discordia')
 local class = discordia.class
 
 local Node = require('node')
-local Pool, get = class('Pool')
-local dump = require('utils').dump
-local random_value = require('utils').random_value
+local Pool = class('Pool')
 
 local format = string.format
 
@@ -21,17 +19,16 @@ function Pool:create_node(client, options)
     end
 
     options.pool = self
-    local id = options.identifier
-    self._nodes[id] = Node(client, options)
+    local node = Node(client, options)
+    self._nodes[options.identifier] = node
+    return node
 end
 
 function Pool:get_node(identifier)
     if self._nodes[identifier] then
         return self._nodes[identifier]
     else
-        print("getting random node")
-        local node = random_value(self._nodes)
-        print(node)
+        return self._nodes[next(self._nodes)]
     end
 end
 

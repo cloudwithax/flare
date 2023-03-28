@@ -31,23 +31,49 @@ function split(str, character)
     return result
 end
 
-function random_value(tb)
-    local values = {}
-    for k, v in pairs(tb) do table.insert(values, v) end
-    print(values.index)
-    return tb[values[math.random(#values)]]
+function valueintb(tb, value)
+    local found = nil
+    for _, v in pairs(tb) do
+        if v == value then
+            found = v
+        end
+    end
+    if found then
+        return true
+    else
+        return false
+    end
 end
 
-function random_key(tb)
-    local keys = {}
-    for k in pairs(tb) do table.insert(keys, k) end
-    return tb[keys[math.random(#keys)]]
+function escape(s)
+    return (string.gsub(s, "([^A-Za-z0-9_])", function(c)
+        return string.format("%%%02x", string.byte(c))
+    end))
+end
+
+function starts_with(str, start)
+    return str:sub(1, #start) == start
+end
+
+function shift(tb)
+    local shifted = table.remove(tb, 1)
+    for i = 1, #tb do
+        tb[i] = tb[i + 1]
+    end
+    tb[#tb] = nil
+    return shifted
+end
+
+function randval(tb)
+    return tb[math.random(1, #tb)]
 end
 
 return {
     dump = dump,
     interp = interp,
     split = split,
-    random_value = random_value,
-    random_key = random_key
+    valueintb = valueintb,
+    escape = escape,
+    starts_with = starts_with,
+    shift = shift
 }

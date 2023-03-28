@@ -1,14 +1,18 @@
+---@diagnostic disable: need-check-nil
 local discordia = require('discordia')
 local websocket = require('coro-websocket')
 local http = require('coro-http')
 local json = require('json')
-local querystring = require('querystring')
 local utils = require('utils')
 local enums = require('enums')
 local interp = utils.interp
 local split = utils.split
 local dump = utils.dump
+local url = require('url')
 local SearchType = enums.SearchType
+local Track = require('track')
+local Playlist = require('playlist')
+local package = require('../../package')
 
 local Emitter = discordia.Emitter
 local class = discordia.class
@@ -52,7 +56,7 @@ function Node:__init(client, options)
         { 'Authorization', self._password },
         { 'Num-Shards',    self._client.shardCount },
         { 'User-Id',       self._client.user.id },
-        { 'Client-Name',   "Flare/1.0.0" }
+        { 'Client-Name',   format("Flare/%s", package.version) }
     }
 
     self._res = nil
@@ -76,7 +80,6 @@ function Node:_listen()
                 self:emit('stats', self._stats)
             elseif payload.op == 'ready' then
                 self._session_id = payload.sessionId
-                print(self._session_id)
             elseif payload.op == 'event' then
                 self:emit('event', payload)
             end
@@ -84,7 +87,6 @@ function Node:_listen()
             self:disconnect()
         end
     end
-    self:close()
 end
 
 function Node:connect()
@@ -133,9 +135,7 @@ function Node:_send(method, path, _guild_id, _query, _data, include_version)
     end
 
     if _query then
-        query = querystring.stringify({
-            identifier = _query
-        })
+        query = "?" .. _query
     end
 
     local uri = format('%s%s%s%s%s', self._rest_uri, version, path, guild_id, query)
@@ -144,11 +144,7 @@ function Node:_send(method, path, _guild_id, _query, _data, include_version)
     local res, body = http.request(method, uri, self._headers, data)
 
     if res.code == 200 then
-        if type(body) == "string" then
-            return body
-        else
-            return json.decode(body)
-        end
+        return json.decode(body)
     elseif res.code == 204 or method == "DELETE" then
         return nil
     else
@@ -158,13 +154,52 @@ end
 
 function Node:get_tracks(_query, search_type)
     if not self._connected then return end
-    assert(type(search_type) == type(SearchType), "Search type is not valid")
+    assert(_query, "Query must be provided.")
 
-    local query = search_type .. ":" .. _query
+    local query = nil
 
-    print(query)
+    if not search_type then
+        local parsed = url.parse(_query)
+        if parsed.host then
+            query = "identifier=" .. utils.escape(_query)
+        else
+            query = "identifier=" .. SearchType.YOUTUBE .. ":" .. utils.escape(_query)
+        end
+    else
+        assert(utils.valueintb(SearchType, search_type), "Search type not valid.")
+        query = "identifier=" .. search_type .. ":" .. utils.escape(_query)
+    end
 
-    -- local tracks = self:_send('GET', 'loadtracks', nil, '')
+
+
+    local data = self:_send('GET', 'loadtracks', nil, query)
+    local load_type = data.loadType
+
+    if not load_type then
+        return print("There was an error while trying to load this track.")
+    end
+
+    if load_type == "NO_MATCHES" then
+        return nil
+    elseif load_type == "LOAD_FAILED" then
+        local exception = data.exception
+        return print(format("Error loading track: %s [%s]", exception.message, exception.severity))
+    elseif load_type == "SEARCH_RESULT" or load_type == "TRACK_LOADED" then
+        local tracks = {}
+        for _, v in pairs(data.tracks) do
+            table.insert(tracks, Track(v))
+        end
+        return tracks
+    elseif load_type == "PLAYLIST_LOADED" then
+        local tracks = {}
+        for _, v in pairs(data.tracks) do
+            table.insert(tracks, Track(v))
+        end
+
+        return Playlist(data, tracks)
+    else
+        return print("There was an error while trying to load this track.")
+    end
 end
 
 return Node
