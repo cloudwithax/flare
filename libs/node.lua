@@ -13,6 +13,7 @@ local SearchType = enums.SearchType
 local Track = require('track')
 local Playlist = require('playlist')
 local package = require('../../package')
+local Player = require('player')
 
 local Emitter = discordia.Emitter
 local class = discordia.class
@@ -118,13 +119,15 @@ function Node:disconnect(forced)
     if not forced then self:_reconnect() end
 end
 
-function Node:_send(method, path, _guild_id, _query, _data, include_version)
+function Node:_send(method, path, _guild_id, _data, _query, include_version)
     if include_version and not self._connected then return end
 
-    local guild_id = ""
+    local guild_id = _guild_id or ""
     local query = _query or ""
     local data = _data or ""
     local version = ""
+
+    print(dump(_guild_id))
 
     if include_version then
         version = "/v" .. self._version .. "/"
@@ -139,7 +142,6 @@ function Node:_send(method, path, _guild_id, _query, _data, include_version)
     end
 
     local uri = format('%s%s%s%s%s', self._rest_uri, version, path, guild_id, query)
-
 
     local res, body = http.request(method, uri, self._headers, data)
 
@@ -171,8 +173,7 @@ function Node:get_tracks(_query, search_type)
     end
 
 
-
-    local data = self:_send('GET', 'loadtracks', nil, query)
+    local data = self:_send('GET', 'loadtracks', nil, nil, query)
     local load_type = data.loadType
 
     if not load_type then
@@ -200,6 +201,21 @@ function Node:get_tracks(_query, search_type)
     else
         return print("There was an error while trying to load this track.")
     end
+end
+
+function Node:create_player(vc)
+    assert(type(vc) ~= "GuildVoiceChannel", "Not a voice channel")
+    local guild = vc.guild
+    if not guild then return false, 'Could not find guild' end
+    if self._players[guild.id] then return self._players[guild.id] end
+
+    local success, err = vc:join() 
+    if not success then return nil, err end
+
+    local player = Player(self, vc)
+    self._players[guild.id] = player
+    return player
+  
 end
 
 return Node
