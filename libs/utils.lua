@@ -68,6 +68,10 @@ function randval(tb)
     return tb[math.random(1, #tb)]
 end
 
+function trim(str)
+    return string.match(str, '^%s*(.-)%s*$')
+end
+
 return {
     dump = dump,
     interp = interp,
@@ -75,5 +79,6 @@ return {
     valueintb = valueintb,
     escape = escape,
     starts_with = starts_with,
-    shift = shift
+    shift = shift,
+    trim = trim
 }

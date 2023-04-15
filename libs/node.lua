@@ -7,7 +7,6 @@ local utils = require('utils')
 local enums = require('enums')
 local interp = utils.interp
 local split = utils.split
-local dump = utils.dump
 local url = require('url')
 local SearchType = enums.SearchType
 local Track = require('track')
@@ -17,7 +16,7 @@ local Player = require('player')
 
 local Emitter = discordia.Emitter
 local class = discordia.class
-local Node, get = class('Node', Emitter)
+local Node = class('Node', Emitter)
 
 local format = string.format
 
@@ -64,6 +63,34 @@ function Node:__init(client, options)
     self._read = nil
 
     self._players = {}
+
+    self._client:on('raw', function(data)
+        data = json.decode(data)
+
+        if data.t == 'VOICE_SERVER_UPDATE' then
+            data = data.d
+            local guild = self._client:getGuild(data.guild_id)
+            if not guild then return end
+
+            local user = guild.me or guild:getMember(self._client.user.id)
+            if not user then return end
+
+            local state = guild._voice_states[user.id]
+            if not state then return end
+
+            local voice_data = {
+                ['voice'] = {
+                    ['token'] = data.token,
+                    ['endpoint'] = data.endpoint,
+                    ['sessionId'] = state.session_id
+                }
+            }
+
+            local player_endpoint = string.format("sessions/%s/players", self._session_id)
+
+            self:_send('PATCH', player_endpoint, guild.id, voice_data, nil, true)
+        end
+    end)
 
     self:connect()
 end
@@ -116,6 +143,8 @@ function Node:disconnect(forced)
     if not self._connected then return end
     self._connected = false
     self._res, self._read = nil, nil
+    self:emit('killed')
+    self:removeAllListeners('event')
     if not forced then self:_reconnect() end
 end
 
@@ -124,13 +153,11 @@ function Node:_send(method, path, _guild_id, _data, _query, include_version)
 
     local guild_id = _guild_id or ""
     local query = _query or ""
-    local data = _data or ""
+    local data = ""
     local version = ""
 
-    print(dump(_guild_id))
-
     if include_version then
-        version = "/v" .. self._version .. "/"
+        version = "v" .. self._version .. "/"
     end
 
     if _guild_id then
@@ -139,6 +166,11 @@ function Node:_send(method, path, _guild_id, _data, _query, include_version)
 
     if _query then
         query = "?" .. _query
+    end
+
+    if _data then
+        data = json.encode(_data)
+        table.insert(self._headers, { "Content-Type", "application/json" })
     end
 
     local uri = format('%s%s%s%s%s', self._rest_uri, version, path, guild_id, query)
@@ -209,13 +241,22 @@ function Node:create_player(vc)
     if not guild then return false, 'Could not find guild' end
     if self._players[guild.id] then return self._players[guild.id] end
 
-    local success, err = vc:join() 
+
+
+    local success, err = self._client._shards[vc.guild.shardId]:updateVoice(vc.guild.id, vc.id)
     if not success then return nil, err end
 
     local player = Player(self, vc)
     self._players[guild.id] = player
     return player
-  
+end
+
+function Node:get_player(guild_id)
+    if self._players[guild_id] then
+        return self._players[guild_id]
+    else
+        return false, "Player not found"
+    end
 end
 
 return Node

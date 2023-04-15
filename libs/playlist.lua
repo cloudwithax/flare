@@ -1,7 +1,7 @@
 local discordia = require('discordia')
 local class = discordia.class
 
-local Playlist = class('Playlist')
+local Playlist, get = class('Playlist')
 
 function Playlist:__init(data, tracks)
     local info = data.playlistInfo
@@ -14,6 +14,18 @@ function Playlist:__init(data, tracks)
     end
 
     self._track_count = #self._tracks
+end
+
+function get.name(self)
+    return self._name
+end
+
+function get.tracks(self)
+    return self._tracks
+end
+
+function get.track_count(self)
+    return self._track_count
 end
 
 return Playlist
